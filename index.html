@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a3a2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CoTecha Geo">
+<link rel="manifest" href="manifest.json">
+<title>CoTecha — Geo Tracking</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--gd:#1a3a2a;--gm:#2d6a4f;--g:#40916c;--gl:#74c69d;--gp:#d8f3dc;--ta:#00b4d8;--gold:#f4a261;--ow:#f8fdf9;--td:#1b2d24;--tm:#5a7a68;--red:#ef4444;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:var(--ow);color:var(--td);min-height:100vh;overflow-x:hidden;}
+  #login-page{min-height:100vh;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at 70% 50%,rgba(0,180,216,.15) 0%,transparent 60%),radial-gradient(ellipse at 20% 80%,rgba(64,145,108,.2) 0%,transparent 50%),linear-gradient(160deg,var(--gd) 0%,#0d2418 50%,#061a2e 100%);position:relative;overflow:hidden;}
+  #login-page::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 1px 1px,rgba(116,198,157,.15) 1px,transparent 0);background-size:40px 40px;pointer-events:none;}
+  .login-card{background:#fff;border-radius:24px;padding:3rem 2.5rem;width:100%;max-width:400px;box-shadow:0 30px 80px rgba(0,0,0,.4);position:relative;z-index:1;border:1px solid rgba(116,198,157,0.2);}
+  .login-logo{text-align:center;margin-bottom:2rem;}
+  .login-logo .icon{width:56px;height:56px;background:linear-gradient(135deg,var(--gl),var(--ta));border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:24px;}
+  .login-logo h1{font-size:1.8rem;color:var(--td);font-weight:900;}
+  .login-logo h1 span{color:var(--g);}
+  .login-logo p{font-size:0.82rem;color:var(--tm);margin-top:0.2rem;font-weight:500;}
+  .form-group{margin-bottom:1.2rem;}
+  .form-group label{display:block;font-size:0.82rem;font-weight:600;color:var(--tm);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem;}
+  .form-group input,.form-group select,.form-group textarea{width:100%;padding:0.75rem 1rem;border:1.5px solid #dde8e0;border-radius:10px;font-family:'Inter',sans-serif;font-size:0.9rem;background:white;color:var(--td);outline:none;transition:border-color 0.2s;}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--g);box-shadow:0 0 0 3px rgba(64,145,108,0.1);}
+  .form-group textarea{resize:vertical;min-height:100px;}
+  .form-group select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234a6642' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;}
+  .btn-primary{width:100%;padding:0.85rem;background:linear-gradient(135deg,var(--g),var(--ta));color:white;border:none;border-radius:50px;font-family:'Inter',sans-serif;font-size:0.97rem;font-weight:700;cursor:pointer;transition:opacity 0.2s;box-shadow:0 8px 24px rgba(64,145,108,0.3);}
+  .btn-primary:hover{opacity:0.9;}
+  .btn-primary:disabled{opacity:0.6;cursor:not-allowed;}
+  .error-msg{background:#fdf0ef;border:1px solid #f0c0bb;color:#8b2d25;padding:0.65rem 0.9rem;border-radius:10px;font-size:0.88rem;margin-bottom:1rem;display:none;}
+  .error-msg.show{display:block;}
+  #app-shell{display:none;flex-direction:column;min-height:100vh;}
+  .topbar{background:rgba(26,58,42,0.97);backdrop-filter:blur(10px);color:white;padding:0.6rem 1rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(116,198,157,0.2);}
+  .topbar-brand{display:flex;align-items:center;gap:0.5rem;font-size:1.05rem;font-weight:900;}
+  .brand-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--gl),var(--ta));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+  .brand-text span{color:var(--gl);}
+  .finca-sub{font-size:0.7rem;font-weight:500;color:rgba(255,255,255,0.5);margin-left:0.3rem;padding-left:0.3rem;border-left:1px solid rgba(255,255,255,0.2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+  .topbar-right{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;}
+  .user-email{font-size:0.72rem;color:rgba(255,255,255,0.6);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rol-badge{padding:0.2rem 0.65rem;border-radius:20px;font-size:0.72rem;font-weight:700;display:none;}
+  .btn-sm{background:rgba(255,255,255,0.08);border:1px solid rgba(116,198,157,0.3);color:rgba(255,255,255,0.8);padding:0.25rem 0.65rem;border-radius:20px;font-size:0.75rem;cursor:pointer;font-family:'Inter',sans-serif;font-weight:500;white-space:nowrap;text-decoration:none;}
+  .btn-sm:hover{background:rgba(116,198,157,0.15);}
+  #gps-bar{padding:0.6rem 1rem;display:flex;align-items:center;gap:0.75rem;font-size:0.82rem;font-weight:600;transition:background 0.3s;}
+  #gps-bar.off{background:#1e293b;color:#64748b;}
+  #gps-bar.searching{background:#1e3a5f;color:#60a5fa;}
+  #gps-bar.inside{background:#14532d;color:#86efac;}
+  #gps-bar.outside{background:#1a3a2a;color:var(--gl);}
+  #gps-bar.error{background:#7f1d1d;color:#fca5a5;}
+  .gps-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  #gps-bar.off .gps-dot{background:#64748b;}
+  #gps-bar.searching .gps-dot{background:#60a5fa;animation:pulse 1s infinite;}
+  #gps-bar.inside .gps-dot{background:#22c55e;animation:pulse 2s infinite;}
+  #gps-bar.outside .gps-dot{background:var(--gl);}
+  #gps-bar.error .gps-dot{background:#ef4444;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+  #zona-actual-badge{margin-left:auto;background:rgba(255,255,255,0.1);padding:0.2rem 0.75rem;border-radius:20px;font-size:0.75rem;white-space:nowrap;}
+  .inner-page{display:none;}
+  .inner-page.active{display:block;}
+  .page-header{background:white;border-bottom:1px solid #e2f0e8;padding:1rem 1.5rem;display:flex;align-items:center;gap:1rem;}
+  .btn-back{background:none;border:1.5px solid #dde8e0;border-radius:20px;padding:0.4rem 0.9rem;font-size:0.82rem;color:var(--tm);cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;}
+  .btn-back:hover{border-color:var(--gl);color:var(--gm);}
+  .page-header h2{font-size:1.2rem;font-weight:800;color:var(--td);}
+  .content{max-width:760px;margin:0 auto;padding:1.5rem;}
+  .content-wide{max-width:980px;margin:0 auto;padding:1.5rem;}
+  #menu-page .content{max-width:640px;text-align:center;padding-top:2rem;}
+  .menu-heading{font-size:1.7rem;font-weight:800;color:var(--td);margin-bottom:0.4rem;}
+  .menu-sub{color:var(--tm);font-size:0.95rem;margin-bottom:2rem;}
+  .menu-grid{display:grid;grid-template-columns:1fr;gap:1rem;}
+  .menu-card{background:white;border:1.5px solid #e2f0e8;border-radius:20px;padding:1.4rem 1.5rem;cursor:pointer;transition:transform 0.25s,box-shadow 0.25s,border-color 0.25s;text-align:left;display:flex;align-items:center;gap:1.25rem;position:relative;overflow:hidden;}
+  .menu-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--g),var(--ta));transform:scaleX(0);transform-origin:left;transition:transform 0.3s;}
+  .menu-card:hover{border-color:var(--gl);transform:translateY(-3px);box-shadow:0 12px 40px rgba(64,145,108,0.12);}
+  .menu-card:hover::before{transform:scaleX(1);}
+  .menu-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+  .menu-card-text h3{font-size:1rem;font-weight:700;color:var(--td);margin-bottom:0.2rem;}
+  .menu-card-text p{font-size:0.84rem;color:var(--tm);line-height:1.4;}
+  #map {
+  width: 100%;
+  aspect-ratio: 1 / 1; /* Esto lo hace perfectamente cuadrado */
+  max-height: 500px;   /* Evita que en pantallas grandes sea gigantesco */
+  margin: 0 auto;
+}
+  .tracking-panel{background:white;border-top:1px solid #e2f0e8;padding:1rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+  .btn-tracking-start{padding:0.75rem 1.5rem;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;border-radius:50px;font-family:'Inter',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(34,197,94,0.3);}
+  .btn-tracking-stop{padding:0.75rem 1.5rem;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;border-radius:50px;font-family:'Inter',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(239,68,68,0.3);}
+  .tracking-info{flex:1;font-size:0.85rem;color:var(--tm);}
+  .tracking-info strong{color:var(--td);display:block;font-size:0.9rem;}
+  .card{background:white;border:1.5px solid #e2f0e8;border-radius:20px;padding:1.5rem;margin-bottom:1.25rem;box-shadow:0 4px 20px rgba(64,145,108,0.07);}
+  .card h3{font-size:0.95rem;font-weight:700;color:var(--td);margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid #e2f0e8;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1.5rem;}
+  .kpi-card{background:white;border:1.5px solid #e2f0e8;border-radius:20px;padding:1.25rem 1.5rem;position:relative;overflow:hidden;}
+  .kpi-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .kpi-v::before{background:linear-gradient(180deg,var(--g),var(--ta));}.kpi-a::before{background:var(--gold);}.kpi-b::before{background:var(--ta);}.kpi-r::before{background:var(--red);}
+  .kpi-label{font-size:0.72rem;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem;}
+  .kpi-value{font-size:1.9rem;font-weight:900;color:var(--td);line-height:1;}
+  .kpi-sub{font-size:0.78rem;color:var(--tm);margin-top:0.25rem;}
+  .tabs{display:flex;gap:0.4rem;margin-bottom:1.5rem;background:white;border:1.5px solid #e2f0e8;border-radius:50px;padding:0.3rem;}
+  .tab{flex:1;padding:0.5rem;border:none;background:none;border-radius:50px;font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:600;color:var(--tm);cursor:pointer;transition:background 0.15s;}
+  .tab.active{background:linear-gradient(135deg,var(--g),var(--ta));color:white;box-shadow:0 4px 12px rgba(64,145,108,0.3);}
+  .tab:hover:not(.active){background:var(--gp);color:var(--gm);}
+  .dash-filters{background:white;border-radius:20px;border:1.5px solid #e2f0e8;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;}
+  .dash-filters label{font-size:0.72rem;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:0.05em;}
+  .dash-filters select,.dash-filters input[type=date]{padding:0.45rem 0.75rem;border:1.5px solid #dde8e0;border-radius:20px;font-family:'Inter',sans-serif;font-size:0.84rem;background:var(--ow);color:var(--td);outline:none;}
+  .btn-refresh{padding:0.45rem 1rem;background:linear-gradient(135deg,var(--g),var(--ta));color:white;border:none;border-radius:20px;font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;margin-left:auto;}
+  .table-wrap{overflow-x:auto;}
+  table.dt{width:100%;border-collapse:collapse;font-size:0.85rem;}
+  .dt th{background:var(--gp);padding:0.6rem 0.85rem;text-align:left;font-size:0.72rem;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e2f0e8;}
+  .dt td{padding:0.6rem 0.85rem;border-bottom:1px solid #f0f8f2;color:var(--td);}
+  .dt tr:last-child td{border-bottom:none;}
+  .dt tr:hover td{background:#f8fdf9;}
+  .badge{display:inline-block;padding:0.2rem 0.6rem;border-radius:20px;font-size:0.72rem;font-weight:700;}
+  .badge-enter{background:#dcfce7;color:#166534;}.badge-exit{background:#fee2e2;color:#991b1b;}.badge-g{background:var(--gp);color:var(--gm);}
+  .loading{text-align:center;padding:2.5rem;color:var(--tm);font-size:0.88rem;}
+  .zona-card{background:white;border:1.5px solid #e2f0e8;border-radius:16px;padding:1rem 1.25rem;margin-bottom:0.75rem;display:flex;align-items:center;gap:1rem;}
+  .zona-color{width:14px;height:40px;border-radius:4px;flex-shrink:0;}
+  .zona-info{flex:1;min-width:0;}
+  .zona-info h4{font-size:0.95rem;font-weight:700;color:var(--td);}
+  .zona-info p{font-size:0.78rem;color:var(--tm);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;}
+  .modal-box{background:#fff;border-radius:20px;padding:2rem;width:100%;max-width:540px;box-shadow:0 24px 64px rgba(0,0,0,0.3);margin:auto;}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
+  .modal-header h3{font-size:1.1rem;font-weight:800;color:var(--td);}
+  .modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--tm);}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  @media(max-width:500px){.form-row{grid-template-columns:1fr;}}
+  footer{margin-top:auto;padding:1rem 1.5rem;text-align:center;font-size:0.72rem;color:var(--tm);border-top:1px solid #e2f0e8;background:white;}
+</style>
+</head>
+<body>
+
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="icon">📍</div>
+      <h1>Co<span>Techa</span></h1>
+      <p>Geo Tracking</p>
+    </div>
+    <div class="error-msg" id="login-error">Usuario o contraseña incorrectos.</div>
+    <div class="form-group"><label>Correo electrónico</label><input type="email" id="login-email" placeholder="tu@email.com" autocomplete="email"/></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn-primary" id="login-btn">Entrar</button>
+    <div style="text-align:center;margin-top:1.5rem;font-size:0.72rem;color:var(--tm);">© 2026 CoTecha · Todos los derechos reservados</div>
+  </div>
+</div>
+
+<div id="app-shell">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">📍</div>
+      <span class="brand-text">Co<span>Techa</span> Geo</span>
+      <span class="finca-sub" id="topbar-finca"></span>
+    </div>
+    <div class="topbar-right">
+      <span class="user-email" id="user-email"></span>
+      <span class="rol-badge" id="rol-badge"></span>
+      <a href="https://cotecha.github.io/app" class="btn-sm">⬅ Inicio</a>
+      <button class="btn-sm" id="btn-logout">Salir</button>
+    </div>
+  </div>
+
+  <div id="gps-bar" class="off">
+    <div class="gps-dot"></div>
+    <span id="gps-status-text">GPS desactivado</span>
+    <span id="zona-actual-badge" style="display:none;"></span>
+  </div>
+
+  <!-- MENÚ -->
+  <div id="menu-page" class="inner-page active">
+    <div class="content">
+      <h2 class="menu-heading" style="margin-top:1rem;">Geo Tracking</h2>
+      <p class="menu-sub">Seguimiento de presencia en zonas de la finca</p>
+      <div class="menu-grid">
+        <div class="menu-card" onclick="showPage('mapa')">
+          <div class="menu-icon" style="background:#e8f8f0;">🗺️</div>
+          <div class="menu-card-text"><h3>Mapa y tracking</h3><p>Ver zonas en el mapa, activar seguimiento GPS y registrar presencia en tiempo real</p></div>
+        </div>
+        <div class="menu-card" onclick="showPage('dashboard')">
+          <div class="menu-icon" style="background:#fff8e8;">📊</div>
+          <div class="menu-card-text"><h3>Dashboard de tiempos</h3><p>Consultar tiempo por zona y usuario, sesiones y eventos de entrada/salida</p></div>
+        </div>
+        <div class="menu-card" id="card-gestion" style="display:none;" onclick="showPage('gestion')">
+          <div class="menu-icon" style="background:#f0eaf8;">⚙️</div>
+          <div class="menu-card-text"><h3>Gestión de zonas</h3><p>Crear, editar y eliminar zonas. Importar y exportar GeoJSON</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAPA -->
+  <div id="mapa-page" class="inner-page">
+    <div class="page-header">
+      <button class="btn-back" onclick="showPage('menu')">← Menú</button>
+      <h2>Mapa y tracking</h2>
+    </div>
+    <div id="map"></div>
+    <div class="tracking-panel">
+      <div class="tracking-info">
+        <strong id="tracking-zona-text">Sin zona detectada</strong>
+        <span id="tracking-tiempo-text">Inicia el seguimiento para registrar presencia</span>
+      </div>
+      <button class="btn-tracking-start" id="btn-start-tracking" onclick="iniciarTracking()">▶ Iniciar tracking</button>
+      <button class="btn-tracking-stop" id="btn-stop-tracking" onclick="detenerTracking()" style="display:none;">⏹ Detener</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard-page" class="inner-page">
+    <div class="page-header">
+      <button class="btn-back" onclick="showPage('menu')">← Menú</button>
+      <h2>Dashboard de tiempos</h2>
+    </div>
+    <div class="content-wide">
+      <div class="tabs">
+        <button class="tab active" id="tab-sesiones" onclick="setDashTab('sesiones')">Sesiones</button>
+        <button class="tab" id="tab-eventos" onclick="setDashTab('eventos')">Eventos</button>
+        <button class="tab" id="tab-resumen" onclick="setDashTab('resumen')">Resumen por zona</button>
+      </div>
+      <div class="dash-filters">
+        <label>Desde</label><input type="date" id="f-desde"/>
+        <label>Hasta</label><input type="date" id="f-hasta"/>
+        <label>Zona</label><select id="f-zona"><option value="">Todas</option></select>
+        <span id="f-user-wrap" style="display:none;display:contents;">
+          <label>Usuario</label><select id="f-usuario"><option value="">Todos</option></select>
+        </span>
+        <button class="btn-refresh" onclick="cargarDashboard()">↻ Actualizar</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-v"><div class="kpi-label">Tiempo total</div><div class="kpi-value" id="kpi-tiempo">—</div><div class="kpi-sub">minutos</div></div>
+        <div class="kpi-card kpi-a"><div class="kpi-label">Sesiones</div><div class="kpi-value" id="kpi-sesiones">—</div><div class="kpi-sub">registradas</div></div>
+        <div class="kpi-card kpi-b"><div class="kpi-label">Zonas visitadas</div><div class="kpi-value" id="kpi-zonas">—</div><div class="kpi-sub">distintas</div></div>
+        <div class="kpi-card kpi-r"><div class="kpi-label">Sesiones activas</div><div class="kpi-value" id="kpi-activas">—</div><div class="kpi-sub">en curso</div></div>
+      </div>
+      <div id="dash-sesiones">
+        <div class="card"><h3>Sesiones de presencia</h3>
+          <div class="table-wrap"><table class="dt"><thead><tr><th>Usuario</th><th>Zona</th><th>Entrada</th><th>Salida</th><th>Duración</th></tr></thead>
+          <tbody id="tabla-sesiones"><tr><td colspan="5" class="loading">Cargando…</td></tr></tbody></table></div>
+        </div>
+      </div>
+      <div id="dash-eventos" style="display:none;">
+        <div class="card"><h3>Registro de eventos</h3>
+          <div class="table-wrap"><table class="dt"><thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Zona</th><th>Evento</th><th>Coordenadas</th></tr></thead>
+          <tbody id="tabla-eventos"><tr><td colspan="5" class="loading">Cargando…</td></tr></tbody></table></div>
+        </div>
+      </div>
+      <div id="dash-resumen" style="display:none;">
+        <div class="card"><h3>Tiempo por zona</h3>
+          <div class="table-wrap"><table class="dt"><thead><tr><th>Zona</th><th>Total min</th><th>Total horas</th><th>Sesiones</th><th>Última visita</th></tr></thead>
+          <tbody id="tabla-resumen"><tr><td colspan="5" class="loading">Cargando…</td></tr></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GESTIÓN -->
+  <div id="gestion-page" class="inner-page">
+    <div class="page-header">
+      <button class="btn-back" onclick="showPage('menu')">← Menú</button>
+      <h2>Gestión de zonas</h2>
+      <button style="margin-left:auto;padding:0.45rem 1rem;background:linear-gradient(135deg,var(--g),var(--ta));color:white;border:none;border-radius:20px;font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;" onclick="abrirModalZona()">+ Nueva zona</button>
+    </div>
+    <div class="content">
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h3>Importar / Exportar GeoJSON</h3>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <button onclick="exportarGeoJSON()" style="padding:0.6rem 1.1rem;background:var(--gp);border:1.5px solid var(--gl);color:var(--gm);border-radius:20px;font-family:'Inter',sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;">⬇ Exportar GeoJSON</button>
+          <label style="padding:0.6rem 1.1rem;background:var(--gp);border:1.5px solid var(--gl);color:var(--gm);border-radius:20px;font-family:'Inter',sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;">
+            ⬆ Importar GeoJSON<input type="file" accept=".json,.geojson" style="display:none;" onchange="importarGeoJSON(event)"/>
+          </label>
+          <span style="font-size:0.78rem;color:var(--tm);">Importa un GeoJSON con FeatureCollection de polígonos desde geojson.io</span>
+        </div>
+      </div>
+      <div id="lista-zonas-g"><div class="loading">Cargando zonas…</div></div>
+    </div>
+  </div>
+
+  <!-- MODAL ZONA -->
+  <div class="modal-overlay" id="modal-zona" onclick="if(event.target===this)cerrarModalZona()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-zona-titulo">Nueva zona</h3>
+        <button class="modal-close" onclick="cerrarModalZona()">×</button>
+      </div>
+      <input type="hidden" id="z-id"/>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="z-nombre" placeholder="Ej: Invernadero Norte"/></div>
+        <div class="form-group"><label>Color</label><input type="color" id="z-color" value="#40916c" style="height:42px;width:100%;border-radius:8px;cursor:pointer;border:1.5px solid #dde8e0;padding:3px;"/></div>
+      </div>
+      <div class="form-group">
+        <label>GeoJSON del polígono *</label>
+        <textarea id="z-geojson" placeholder='Pega aquí el GeoJSON de la zona. Puedes crearlo en geojson.io'></textarea>
+        <div style="margin-top:0.4rem;font-size:0.75rem;color:var(--tm);">💡 Usa <a href="https://geojson.io" target="_blank" style="color:var(--g);">geojson.io</a> para dibujar el polígono y copiar el GeoJSON</div>
+      </div>
+      <div id="z-error" style="display:none;padding:0.65rem;background:#fdf0ef;border:1px solid #f0c0bb;color:#8b2d25;border-radius:8px;font-size:0.88rem;margin-bottom:1rem;"></div>
+      <div style="display:flex;gap:0.75rem;">
+        <button onclick="cerrarModalZona()" style="flex:1;padding:0.75rem;background:var(--ow);border:1.5px solid #dde8e0;border-radius:10px;font-family:'Inter',sans-serif;font-size:0.9rem;color:var(--tm);cursor:pointer;">Cancelar</button>
+        <button onclick="guardarZona()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,var(--g),var(--ta));border:none;border-radius:50px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;color:white;cursor:pointer;" id="z-btn">Guardar zona</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>© 2026 CoTecha · Todos los derechos reservados</footer>
+</div>
+
+<script>
+const SB_URL='https://gkhujhooviccodadnngx.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdraHVqaG9vdmljY29kYWRubmd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMjQ1MTgsImV4cCI6MjA4OTYwMDUxOH0.n5o_sVkO24zW9NLHaYLk_i8tsOJZMiYDg1qEU9LhnfU';
+let sb=null,currentFincaId=null,currentRol=null,currentUser=null;
+let dbZonas=[],map=null,mapaIniciado=false;
+let watchId=null,trackingActivo=false,ultimaZonaId=null,sesionActivaId=null;
+let dashTab='sesiones';
+
+function initSB(){if(!sb)sb=window.supabase.createClient(SB_URL,SB_KEY);}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim(),pass=document.getElementById('login-password').value,btn=document.getElementById('login-btn');
+  btn.disabled=true;btn.textContent='Entrando…';
+  const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  btn.disabled=false;btn.textContent='Entrar';
+  if(error){document.getElementById('login-error').textContent=error.message;document.getElementById('login-error').classList.add('show');return;}
+  document.getElementById('login-error').classList.remove('show');
+  await showApp(data.user);
+}
+async function doLogout(){detenerTracking();if(sb)await sb.auth.signOut();location.reload();}
+
+async function showApp(user){
+  currentUser=user;
+  document.getElementById('user-email').textContent=user.email;
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('app-shell').style.cssText='display:flex;flex-direction:column;min-height:100vh;';
+  const{data:fu}=await sb.from('finca_usuarios').select('finca_id,fincas(nombre)').limit(1);
+  if(!fu||!fu.length){alert('No estás asignado a ninguna finca.');return;}
+  currentFincaId=fu[0].finca_id;
+  document.getElementById('topbar-finca').textContent=fu[0].fincas.nombre;
+  const{data:ma}=await sb.from('modulo_accesos').select('rol,activo').eq('finca_id',currentFincaId).eq('modulo','geo').limit(1);
+  if(!ma||!ma.length||!ma[0].activo){alert('Sin acceso al módulo Geo. Contacta con CoTecha.');return;}
+  currentRol=ma[0].rol;
+  const rb=document.getElementById('rol-badge');
+  rb.style.display='inline-block';rb.textContent=currentRol==='keyuser'?'KeyUser':'User';
+  rb.style.background=currentRol==='keyuser'?'rgba(0,180,216,0.2)':'rgba(116,198,157,0.2)';
+  rb.style.color=currentRol==='keyuser'?'#00b4d8':'#74c69d';
+  document.getElementById('card-gestion').style.display=currentRol==='keyuser'?'flex':'none';
+  if(currentRol==='keyuser')document.getElementById('f-user-wrap').style.display='';
+  await cargarZonas();
+}
+
+function showPage(page,addH=true){
+  document.querySelectorAll('.inner-page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(page+'-page').classList.add('active');
+  if(page==='mapa')iniciarMapa();
+  if(page==='dashboard')initDashboard();
+  if(page==='gestion')renderListaZonas();
+  if(addH)history.pushState({page},'','#'+page);
+}
+window.addEventListener('popstate',e=>showPage(e.state?e.state.page:'menu',false));
+
+async function cargarZonas(){
+  const{data}=await sb.from('geo_zonas').select('*').eq('finca_id',currentFincaId).eq('activo',true).order('nombre');
+  dbZonas=data||[];
+  poblarFiltroZonas();
+  if(mapaIniciado)dibujarZonasEnMapa();
+}
+
+function poblarFiltroZonas(){
+  const sel=document.getElementById('f-zona');
+  if(sel)sel.innerHTML='<option value="">Todas</option>'+dbZonas.map(z=>`<option value="${z.id}">${z.nombre}</option>`).join('');
+}
+
+function iniciarMapa(){
+  if(mapaIniciado){dibujarZonasEnMapa();return;}
+  map=L.map('map').setView([36.84,-2.46],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:20}).addTo(map);
+  mapaIniciado=true;
+  dibujarZonasEnMapa();
+}
+
+function dibujarZonasEnMapa(){
+  if(!map)return;
+  // Limpiar capas anteriores excepto el tile
+  map.eachLayer(l=>{if(l instanceof L.GeoJSON||l instanceof L.CircleMarker)map.removeLayer(l);});
+  const layers=[];
+  dbZonas.forEach(z=>{
+    try{
+      const geo=typeof z.geojson==='string'?JSON.parse(z.geojson):z.geojson;
+      const layer=L.geoJSON(geo,{
+        style:{color:z.color||'#40916c',weight:2.5,fillOpacity:0.15,fillColor:z.color||'#40916c'}
+      }).bindPopup(`<b>📍 ${z.nombre}</b>`).addTo(map);
+      layers.push(layer);
+    }catch(e){console.warn('GeoJSON inválido:',z.nombre);}
+  });
+  if(layers.length){
+    try{
+      const group=L.featureGroup(layers);
+      if(group.getBounds().isValid())map.fitBounds(group.getBounds(),{padding:[30,30]});
+    }catch(e){}
+  }
+}
+
+let userMarker=null;
+function actualizarPosicionEnMapa(lat,lng){
+  if(!map)return;
+  if(userMarker)userMarker.setLatLng([lat,lng]);
+  else userMarker=L.circleMarker([lat,lng],{radius:10,fillColor:'#00b4d8',fillOpacity:0.9,color:'white',weight:2}).addTo(map);
+}
+
+async function iniciarTracking(){
+  if(!('geolocation' in navigator)){alert('Geolocalización no disponible.');return;}
+  document.getElementById('btn-start-tracking').style.display='none';
+  document.getElementById('btn-stop-tracking').style.display='';
+  trackingActivo=true;
+  setGPSBar('searching','Buscando señal GPS…');
+  watchId=navigator.geolocation.watchPosition(
+    async pos=>{
+      const{latitude:lat,longitude:lng,accuracy}=pos.coords;
+      actualizarPosicionEnMapa(lat,lng);
+      if(document.getElementById('gps-bar').className!=='inside')
+        setGPSBar('outside',`GPS activo · Precisión: ${Math.round(accuracy)}m`);
+      await checkLocation(lat,lng);
+    },
+    err=>{
+      const msgs={1:'Permiso GPS denegado — actívalo en ajustes',2:'GPS no disponible',3:'Tiempo de espera GPS agotado'};
+      setGPSBar('error',msgs[err.code]||'Error GPS');
+    },
+    {enableHighAccuracy:true,timeout:15000,maximumAge:5000}
+  );
+}
+
+function detenerTracking(){
+  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+  trackingActivo=false;
+  if(ultimaZonaId!==null){
+    const z=dbZonas.find(x=>x.id===ultimaZonaId);
+    if(z)registrarEvento('EXIT',z,null,null);
+    ultimaZonaId=null;
+  }
+  document.getElementById('btn-start-tracking').style.display='';
+  document.getElementById('btn-stop-tracking').style.display='none';
+  setGPSBar('off','GPS desactivado');
+  document.getElementById('tracking-zona-text').textContent='Sin zona detectada';
+  document.getElementById('tracking-tiempo-text').textContent='Inicia el seguimiento para registrar presencia';
+  document.getElementById('zona-actual-badge').style.display='none';
+}
+
+async function checkLocation(lat,lng){
+  const pt=turf.point([lng,lat]);
+  let zonaActual=null;
+  dbZonas.forEach(z=>{
+    try{
+      const geo=typeof z.geojson==='string'?JSON.parse(z.geojson):z.geojson;
+      const feat=geo.type==='Feature'?geo:{type:'Feature',geometry:geo,properties:{}};
+      if(turf.booleanPointInPolygon(pt,feat))zonaActual=z;
+    }catch(e){}
+  });
+  const zonaIdActual=zonaActual?zonaActual.id:null;
+  if(zonaIdActual===ultimaZonaId)return;
+  if(ultimaZonaId!==null){
+    const zAnt=dbZonas.find(z=>z.id===ultimaZonaId);
+    if(zAnt)await registrarEvento('EXIT',zAnt,lat,lng);
+  }
+  if(zonaIdActual!==null){
+    await registrarEvento('ENTER',zonaActual,lat,lng);
+    setGPSBar('inside',`En zona: ${zonaActual.nombre}`);
+    document.getElementById('tracking-zona-text').textContent='📍 '+zonaActual.nombre;
+    document.getElementById('tracking-tiempo-text').textContent='Sesión iniciada · '+new Date().toLocaleTimeString('es-ES');
+    const b=document.getElementById('zona-actual-badge');b.textContent=zonaActual.nombre;b.style.display='';
+  }else{
+    setGPSBar('outside','GPS activo · Fuera de zonas');
+    document.getElementById('tracking-zona-text').textContent='Fuera de zonas definidas';
+    document.getElementById('tracking-tiempo-text').textContent='Moviéndose…';
+    document.getElementById('zona-actual-badge').style.display='none';
+  }
+  ultimaZonaId=zonaIdActual;
+}
+
+async function registrarEvento(tipo,zona,lat,lng){
+  const ahora=new Date().toISOString();
+  await sb.from('geo_eventos').insert([{
+    finca_id:currentFincaId,user_id:currentUser.id,user_email:currentUser.email,
+    zona_id:zona.id,nombre_zona:zona.nombre,tipo_evento:tipo,lat,lng
+  }]);
+  if(tipo==='ENTER'){
+    const{data}=await sb.from('geo_sesiones').insert([{
+      finca_id:currentFincaId,user_id:currentUser.id,user_email:currentUser.email,
+      zona_id:zona.id,nombre_zona:zona.nombre,entrada_at:ahora
+    }]).select().single();
+    if(data)sesionActivaId=data.id;
+  }else if(tipo==='EXIT'&&sesionActivaId){
+    const{data:ses}=await sb.from('geo_sesiones').select('entrada_at').eq('id',sesionActivaId).single();
+    if(ses){
+      const min=(new Date(ahora)-new Date(ses.entrada_at))/60000;
+      await sb.from('geo_sesiones').update({salida_at:ahora,duracion_minutos:parseFloat(min.toFixed(2))}).eq('id',sesionActivaId);
+    }
+    sesionActivaId=null;
+  }
+}
+
+function setGPSBar(state,text){
+  document.getElementById('gps-bar').className=state;
+  document.getElementById('gps-status-text').textContent=text;
+}
+
+function setDashTab(tab){
+  dashTab=tab;
+  ['sesiones','eventos','resumen'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+    document.getElementById('dash-'+t).style.display=t===tab?'block':'none';
+  });
+  cargarDashboard();
+}
+
+async function initDashboard(){
+  const hoy=new Date().toISOString().split('T')[0];
+  const hace7=new Date(Date.now()-7*24*60*60*1000).toISOString().split('T')[0];
+  document.getElementById('f-desde').value=hace7;
+  document.getElementById('f-hasta').value=hoy;
+  poblarFiltroZonas();
+  if(currentRol==='keyuser')await cargarUsuariosFiltro();
+  await cargarDashboard();
+}
+
+async function cargarUsuariosFiltro(){
+  const{data}=await sb.from('geo_eventos').select('user_email').eq('finca_id',currentFincaId);
+  const emails=[...new Set((data||[]).map(r=>r.user_email).filter(Boolean))];
+  const sel=document.getElementById('f-usuario');
+  sel.innerHTML='<option value="">Todos</option>'+emails.map(e=>`<option value="${e}">${e}</option>`).join('');
+}
+
+async function cargarDashboard(){
+  const desde=document.getElementById('f-desde').value;
+  const hasta=document.getElementById('f-hasta').value;
+  const zonaId=document.getElementById('f-zona').value;
+  const userEmail=document.getElementById('f-usuario')?document.getElementById('f-usuario').value:'';
+  let qS=sb.from('geo_sesiones').select('*').eq('finca_id',currentFincaId).order('entrada_at',{ascending:false});
+  if(desde)qS=qS.gte('entrada_at',desde);
+  if(hasta)qS=qS.lte('entrada_at',hasta+'T23:59:59');
+  if(zonaId)qS=qS.eq('zona_id',zonaId);
+  if(userEmail)qS=qS.eq('user_email',userEmail);
+  if(currentRol!=='keyuser')qS=qS.eq('user_id',currentUser.id);
+  const{data:sesiones}=await qS.limit(500);
+  let qE=sb.from('geo_eventos').select('*').eq('finca_id',currentFincaId).order('created_at',{ascending:false});
+  if(desde)qE=qE.gte('created_at',desde);
+  if(hasta)qE=qE.lte('created_at',hasta+'T23:59:59');
+  if(zonaId)qE=qE.eq('zona_id',zonaId);
+  if(userEmail)qE=qE.eq('user_email',userEmail);
+  if(currentRol!=='keyuser')qE=qE.eq('user_id',currentUser.id);
+  const{data:eventos}=await qE.limit(500);
+  const s=sesiones||[],e=eventos||[];
+  const tiempoTotal=s.filter(x=>x.duracion_minutos).reduce((a,x)=>a+x.duracion_minutos,0);
+  document.getElementById('kpi-tiempo').textContent=Math.round(tiempoTotal);
+  document.getElementById('kpi-sesiones').textContent=s.length;
+  document.getElementById('kpi-zonas').textContent=new Set(s.map(x=>x.zona_id)).size;
+  document.getElementById('kpi-activas').textContent=s.filter(x=>!x.salida_at).length;
+  renderTablaSesiones(s);renderTablaEventos(e);renderTablaResumen(s);
+}
+
+function fmt(m){if(!m)return'—';const h=Math.floor(m/60),min=Math.round(m%60);return h>0?`${h}h ${min}m`:`${min}m`;}
+
+function renderTablaSesiones(data){
+  const tb=document.getElementById('tabla-sesiones');
+  if(!data.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--tm);">Sin sesiones</td></tr>';return;}
+  tb.innerHTML=data.map(s=>`<tr>
+    <td style="font-size:0.8rem;">${s.user_email||'—'}</td>
+    <td><span class="badge badge-g">${s.nombre_zona||'—'}</span></td>
+    <td style="font-size:0.8rem;white-space:nowrap;">${s.entrada_at?new Date(s.entrada_at).toLocaleString('es-ES'):'—'}</td>
+    <td style="font-size:0.8rem;white-space:nowrap;">${s.salida_at?new Date(s.salida_at).toLocaleString('es-ES'):'<span style="color:#22c55e;font-weight:700;">● Activa</span>'}</td>
+    <td><strong>${fmt(s.duracion_minutos)}</strong></td></tr>`).join('');
+}
+
+function renderTablaEventos(data){
+  const tb=document.getElementById('tabla-eventos');
+  if(!data.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--tm);">Sin eventos</td></tr>';return;}
+  tb.innerHTML=data.map(e=>`<tr>
+    <td style="font-size:0.8rem;white-space:nowrap;">${new Date(e.created_at).toLocaleString('es-ES')}</td>
+    <td style="font-size:0.8rem;">${e.user_email||'—'}</td>
+    <td>${e.nombre_zona||'—'}</td>
+    <td><span class="badge ${e.tipo_evento==='ENTER'?'badge-enter':'badge-exit'}">${e.tipo_evento==='ENTER'?'▶ Entrada':'⏹ Salida'}</span></td>
+    <td style="font-size:0.75rem;color:var(--tm);">${e.lat?e.lat.toFixed(5)+', '+e.lng.toFixed(5):'—'}</td></tr>`).join('');
+}
+
+function renderTablaResumen(data){
+  const tb=document.getElementById('tabla-resumen');
+  const zonas={};
+  data.forEach(s=>{
+    const k=s.zona_id||'x';
+    if(!zonas[k])zonas[k]={nombre:s.nombre_zona||'—',minutos:0,sesiones:0,ultima:null};
+    zonas[k].minutos+=(s.duracion_minutos||0);zonas[k].sesiones++;
+    if(s.entrada_at&&(!zonas[k].ultima||s.entrada_at>zonas[k].ultima))zonas[k].ultima=s.entrada_at;
+  });
+  const sorted=Object.values(zonas).sort((a,b)=>b.minutos-a.minutos);
+  if(!sorted.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--tm);">Sin datos</td></tr>';return;}
+  tb.innerHTML=sorted.map(z=>`<tr>
+    <td><strong>${z.nombre}</strong></td>
+    <td><strong>${Math.round(z.minutos)}</strong></td>
+    <td>${(z.minutos/60).toFixed(1)}h</td>
+    <td>${z.sesiones}</td>
+    <td style="font-size:0.8rem;color:var(--tm);">${z.ultima?new Date(z.ultima).toLocaleDateString('es-ES'):'—'}</td></tr>`).join('');
+}
+
+function renderListaZonas(){
+  const cont=document.getElementById('lista-zonas-g');
+  if(!dbZonas.length){cont.innerHTML='<div class="loading">Sin zonas. Añade la primera o importa un GeoJSON.</div>';return;}
+  cont.innerHTML=dbZonas.map(z=>`
+    <div class="zona-card">
+      <div class="zona-color" style="background:${z.color||'#40916c'};"></div>
+      <div class="zona-info"><h4>${z.nombre}</h4><p>ID: ${z.id.slice(0,12)}…</p></div>
+      <div style="display:flex;gap:0.4rem;">
+        <button onclick="abrirModalZona(${JSON.stringify(z).replace(/"/g,'&quot;')})" style="background:none;border:1.5px solid #dde8e0;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.78rem;color:var(--tm);cursor:pointer;">✏️ Editar</button>
+        <button onclick="eliminarZona('${z.id}')" style="background:none;border:1.5px solid #f0c0bb;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.78rem;color:#8b2d25;cursor:pointer;">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirModalZona(z=null){
+  document.getElementById('modal-zona-titulo').textContent=z?'Editar zona':'Nueva zona';
+  document.getElementById('z-id').value=z?z.id:'';
+  document.getElementById('z-nombre').value=z?z.nombre:'';
+  document.getElementById('z-color').value=z?(z.color||'#40916c'):'#40916c';
+  document.getElementById('z-geojson').value=z?JSON.stringify(typeof z.geojson==='string'?JSON.parse(z.geojson):z.geojson,null,2):'';
+  document.getElementById('z-error').style.display='none';
+  document.getElementById('modal-zona').style.display='flex';
+}
+function cerrarModalZona(){document.getElementById('modal-zona').style.display='none';}
+
+async function guardarZona(){
+  const id=document.getElementById('z-id').value;
+  const nombre=document.getElementById('z-nombre').value.trim();
+  const color=document.getElementById('z-color').value;
+  const raw=document.getElementById('z-geojson').value.trim();
+  const errDiv=document.getElementById('z-error');
+  if(!nombre||!raw){errDiv.textContent='Nombre y GeoJSON son obligatorios.';errDiv.style.display='block';return;}
+  let geojson;
+  try{geojson=JSON.parse(raw);}catch(e){errDiv.textContent='GeoJSON inválido: '+e.message;errDiv.style.display='block';return;}
+  if(geojson.type==='FeatureCollection'&&geojson.features?.length)geojson=geojson.features[0];
+  const btn=document.getElementById('z-btn');btn.disabled=true;btn.textContent='Guardando…';
+  const payload={nombre,color,geojson,finca_id:currentFincaId};
+  let error;
+  if(id){({error}=await sb.from('geo_zonas').update(payload).eq('id',id));}
+  else{({error}=await sb.from('geo_zonas').insert([payload]));}
+  btn.disabled=false;btn.textContent='Guardar zona';
+  if(error){errDiv.textContent='Error: '+error.message;errDiv.style.display='block';return;}
+  cerrarModalZona();await cargarZonas();renderListaZonas();
+}
+
+async function eliminarZona(id){
+  if(!confirm('¿Eliminar esta zona?'))return;
+  await sb.from('geo_zonas').update({activo:false}).eq('id',id);
+  await cargarZonas();renderListaZonas();
+}
+
+function exportarGeoJSON(){
+  const fc={type:'FeatureCollection',features:dbZonas.map(z=>({
+    type:'Feature',properties:{nombre:z.nombre,color:z.color,id:z.id},
+    geometry:(typeof z.geojson==='string'?JSON.parse(z.geojson):z.geojson).geometry||(typeof z.geojson==='string'?JSON.parse(z.geojson):z.geojson)
+  }))};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(fc,null,2)],{type:'application/json'}));
+  a.download='cotecha-zonas.geojson';a.click();
+}
+
+async function importarGeoJSON(event){
+  const file=event.target.files[0];if(!file)return;
+  let fc;
+  try{fc=JSON.parse(await file.text());}catch(e){alert('Archivo GeoJSON inválido.');return;}
+  if(fc.type!=='FeatureCollection'||!fc.features){alert('Debe ser un GeoJSON FeatureCollection.');return;}
+  let n=0;
+  for(const feat of fc.features){
+    const nombre=feat.properties?.name||feat.properties?.nombre||'Zona importada';
+    const color=feat.properties?.color||'#40916c';
+    await sb.from('geo_zonas').insert([{nombre,color,geojson:feat,finca_id:currentFincaId}]);n++;
+  }
+  alert(`✅ ${n} zona${n!==1?'s':''} importada${n!==1?'s':''}.`);
+  event.target.value='';
+  await cargarZonas();renderListaZonas();
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  initSB();
+  sb.auth.getSession().then(async({data:{session}})=>{
+    if(session)await showApp(session.user);
+    else document.getElementById('login-page').style.display='flex';
+  });
+  document.getElementById('login-btn').addEventListener('click',doLogin);
+  document.getElementById('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  document.getElementById('btn-logout').addEventListener('click',doLogout);
+});
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
